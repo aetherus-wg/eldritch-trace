@@ -1,7 +1,7 @@
 //! Eldritch-Trace DSL command-line tool
 
 use aetherus_events::{
-    Uid,
+    prelude::*,
     read::{CsvRecord, read_csv, read_ledger},
 };
 use anyhow::{Context, Result};
@@ -126,7 +126,8 @@ fn main() -> Result<()> {
     // 5. Read the ledger and resolve the declarations from source values allocated in the ledger
     // and pattern encoding specified in the Trie
     let ledger = read_ledger(&ledger_path).expect("Failed to read ledger file");
-    let src_dict = ledger.get_src_dict();
+    let ledger_tree: LedgerTree = ledger.into();
+    let src_dict = ledger_tree.get_src_dict();
 
     info!("SrcId dictionary from ledger: {:?}", src_dict);
 
@@ -187,7 +188,7 @@ fn main() -> Result<()> {
             "{}_top.dot",
             script_filepath.file_stem().unwrap().to_str().unwrap()
         ));
-        let graphviz_dot = ledger.emit_dot_with_freq(uids_top.keys(), &uids_top);
+        let graphviz_dot = ledger_tree.emit_dot_with_freq(uids_top.keys(), &uids_top);
         std::fs::write(&dot_file, graphviz_dot).context("Failed to write DOT file")?;
     }
 
@@ -199,7 +200,7 @@ fn main() -> Result<()> {
     // 7. Evaluate each rule on the ledger and emit a DOT graph visualizing the UIDs that match the rule
     for (rule_name, rule) in rules.iter() {
         print!("{:<40}", format!("Rule: \x1b[32m{}\x1b[0m", rule_name));
-        let uids = rule.evaluate(&ledger)?;
+        let uids = rule.evaluate(&ledger_tree)?;
         println!("Found {} UIDs", uids.len());
 
         if let Some(ref signals_path) = signals_path {
@@ -245,7 +246,7 @@ fn main() -> Result<()> {
             script_filepath.file_stem().unwrap().to_str().unwrap(),
             rule_name
         ));
-        let graphviz_dot = ledger.emit_dot(&uids);
+        let graphviz_dot = ledger_tree.emit_dot(&uids);
         std::fs::write(&dot_file, graphviz_dot).context("Failed to write DOT file")?;
     }
 

@@ -2,6 +2,7 @@
 
 use aetherus_events::{
     read::read_ledger,
+    prelude::*
 };
 use anyhow::{Context, Result};
 use env_logger;
@@ -48,7 +49,8 @@ fn test_integration() -> Result<()> {
     // 5. Read the ledger and resolve the declarations from source values allocated in the ledger
     // and pattern encoding specified in the Trie
     let ledger = read_ledger(&ledger_path).expect("Failed to read ledger file");
-    let src_dict = ledger.get_src_dict();
+    let ledger_tree: LedgerTree = ledger.into();
+    let src_dict = ledger_tree.get_src_dict();
 
     info!("SrcId dictionary from ledger: {:?}", src_dict);
 
@@ -73,7 +75,7 @@ fn test_integration() -> Result<()> {
     // 7. Evaluate each rule on the ledger and emit a DOT graph visualizing the UIDs that match the rule
     for (rule_name, rule) in rules.iter() {
         print!("{:<40}", format!("Rule: \x1b[32m{}\x1b[0m", rule_name));
-        let uids = rule.evaluate(&ledger)?;
+        let uids = rule.evaluate(&ledger_tree)?;
         let expected_uids_no = *expect_hits.get(rule_name.as_str()).unwrap_or(&0);
         assert_eq!(uids.len(), expected_uids_no , "Unexpected number of hits for rule \"{}\"", rule_name);
     }

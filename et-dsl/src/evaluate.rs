@@ -3,7 +3,11 @@
 //! This module provides functionality for evaluating rules
 //! against Ledger hierarchy of events that encodes the chain of events
 
-use aetherus_events::{Ledger, Uid};
+use std::sync::Arc;
+
+use aetherus_events::ledger::LedgerNode;
+use aetherus_events::maps::SmallMap;
+use aetherus_events::prelude::*;
 use anyhow::Result;
 
 use crate::Check;
@@ -13,7 +17,7 @@ impl Rule {
     /// Evaluate this rule against a ledger.
     ///
     /// Returns a list of UIDs that match the rule.
-    pub fn evaluate(&self, ledger: &Ledger) -> Result<Vec<Uid>> {
+    pub fn evaluate(&self, ledger: &LedgerTree) -> Result<Vec<Uid>> {
         find_uids_with_rule(ledger, self)
     }
 }
@@ -31,7 +35,7 @@ impl Rule {
 /// # Returns
 ///
 /// A list of matching UIDs
-pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
+pub fn find_uids_with_rule(ledger: &LedgerTree, rule: &Rule) -> Result<Vec<Uid>> {
     let mut found_uids: Vec<Uid> = Vec::new();
 
     #[derive(Clone, Debug)]
@@ -49,7 +53,7 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
     }
     #[derive(Clone)]
     pub struct RuleTraverse<'a> {
-        pub uid: Uid,
+        pub node: Arc<LedgerNode<u32, SmallMap<u32, 4>>>,
         pub cond_idx: usize,
         pub conds: Vec<CondTraverse<'a>>,
     }
@@ -103,9 +107,9 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
             }
         }
     }
-    for &uid in ledger.get_start_events() {
+    for node in ledger.root().children().iter() {
         stack.push(RuleTraverse {
-            uid,
+            node: node.clone(),
             cond_idx: 0,
             conds: conds.clone(),
         });
@@ -117,6 +121,9 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
     while let Some(mut rule) = stack.pop() {
         //println!("Evaluating rule at UID: {:?}, condition index: {}, conditions: {:?}", rule.uid, rule.cond_idx, rule.conds);
 
+        let uid = rule.node.uid().unwrap();
+        let event = *rule.node.event();
+
         let mut pass = true;
         let mut remove = false;
         let mut bifurcate = false;
@@ -127,7 +134,7 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
             recheck = false;
             match cond {
                 CondTraverse::Pattern { pred, event_match, cnt } => {
-                    let event_check = event_match.check(rule.uid.event);
+                    let event_check = event_match.check(*rule.node.event());
                     match pred {
                         Predicate::Unit => {
                             if event_check {
@@ -165,7 +172,7 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
                     }
 
                     let (pred, pattern_match) = &seq.0[*seq_idx];
-                    let event_check = pattern_match.check(rule.uid.event);
+                    let event_check = pattern_match.check(event);
                     match pred {
                         // Indexes of sequence conditions that are currently in neg check (predicate=!),
                         // to be evaluated on the same UID without advancing
@@ -221,7 +228,7 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
 
         if pass {
             let cond_idx = rule.cond_idx;
-            let next_uids = ledger.get_next(&rule.uid);
+            let next_nodes = rule.node.children();
 
             if remove {
                 rule.conds.remove(rule.cond_idx);
@@ -252,17 +259,17 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
                 }
 
                 if rule.cond_idx == 0 {
-                    for &next_uid in next_uids.iter() {
+                    for next_node in next_nodes.iter() {
                         stack.push(RuleTraverse {
-                            uid: next_uid,
+                            node: next_node.clone(),
                             cond_idx: bifurcated_rule.cond_idx,
                             conds: bifurcated_rule.conds.clone(),
                         });
                     }
-                    if next_uids.is_empty() && rule.satfisfied() {
+                    if next_nodes.is_empty() && rule.satfisfied() {
                         //println!("Found a match for rule with UID: {:?}", rule.uid);
-                        if !found_uids.contains(&rule.uid) {
-                            found_uids.push(rule.uid);
+                        if !found_uids.contains(&uid) {
+                            found_uids.push(uid);
                         }
                     }
                 } else {
@@ -271,17 +278,17 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
             }
 
             if rule.cond_idx == 0 {
-                for &next_uid in next_uids.iter() {
+                for next_node in next_nodes.iter() {
                     stack.push(RuleTraverse {
-                        uid: next_uid,
+                        node: next_node.clone(),
                         cond_idx: rule.cond_idx,
                         conds: rule.conds.clone(),
                     });
                 }
-                if next_uids.is_empty() && rule.satfisfied() {
+                if next_nodes.is_empty() && rule.satfisfied() {
                     //println!("Found a match for rule with UID: {:?}", rule.uid);
-                    if !found_uids.contains(&rule.uid) {
-                        found_uids.push(rule.uid);
+                    if !found_uids.contains(&uid) {
+                        found_uids.push(uid);
                     }
                 }
             } else {

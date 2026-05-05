@@ -8,6 +8,8 @@ use std::{
 };
 use tar::Archive;
 
+use aetherus_events::{prelude::*, read::read_ledger};
+
 fn get_benches_dir() -> PathBuf {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
     PathBuf::from(manifest_dir)
@@ -72,8 +74,9 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     // Read ledger for semantic model resolution
     let ledger =
-        aetherus_events::read::read_ledger(&ledger_path).expect("Failed to read ledger file");
-    let src_dict = ledger.get_src_dict();
+        read_ledger(&ledger_path).expect("Failed to read ledger file");
+    let ledger_tree: LedgerTree = ledger.into();
+    let src_dict = ledger_tree.get_src_dict();
 
     // Benchmark 3: Resolve declarations and build semantic model
     c.bench_function("resolve_ast", |b| {
@@ -99,7 +102,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             |b, rule| {
                 b.iter(|| {
                     let _uids = rule
-                        .evaluate(black_box(&ledger))
+                        .evaluate(black_box(&ledger_tree))
                         .expect("Failed to evaluate rule");
                 })
             },

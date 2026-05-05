@@ -63,11 +63,11 @@ fn main() -> Result<()> {
     let encoding_filename = args.encoding;
     let encoding_filepath = Path::new(&encoding_filename);
     let encoding_src =
-        &fs::read_to_string(&encoding_filepath).context("Failed to read encoding scheme file")?;
+        &fs::read_to_string(encoding_filepath).context("Failed to read encoding scheme file")?;
 
     let script_arg = args.script;
     let script_filepath = Path::new(&script_arg);
-    let script_src = &fs::read_to_string(&script_filepath).context("Failed to read script file")?;
+    let script_src = fs::read_to_string(script_filepath).context("Failed to read script file")?;
 
     // 1. Build the decoder Trie from the encoding scheme
     let trie = et_encoding::build_decoder(encoding_src)
@@ -103,19 +103,19 @@ fn main() -> Result<()> {
     info!("FieldId dictionary: {:?}", dict);
 
     // 3. Parse the script into declarations: src, pattern, sequence, rule
-    let declarations = parse_script(script_src, &dict);
+    let declarations = parse_script(&script_src, &dict);
 
     // 4. Extract ledger path and signals path from declarations (or use command-line overrides)
     // FIXME: Combine with the arguments parsed with clap
     let ledger_path = if let Some(filepath) = args.ledger {
         PathBuf::from(filepath)
     } else {
-        extract_ledger_path(&declarations, script_src, script_filepath).unwrap_or_else(|| panic!("Failed to extract ledger from: {}", script_filepath.display()))
+        extract_ledger_path(&declarations, &script_src, script_filepath).unwrap_or_else(|| panic!("Failed to extract ledger from: {}", script_filepath.display()))
     };
     let signals_path = if let Some(filepath) = args.signals {
         Some(PathBuf::from(filepath))
     } else {
-        extract_signals_path(&declarations, script_src, script_filepath)
+        extract_signals_path(&declarations, &script_src, script_filepath)
     };
 
     info!(
@@ -135,8 +135,8 @@ fn main() -> Result<()> {
     info!(
         "Finished resolving with Rules: {:#?}",
         rules
-            .iter()
-            .map(|(key, _val)| key.to_string())
+            .keys()
+            .map(|key| key.to_string())
             .collect::<Vec<_>>()
     );
 
@@ -163,9 +163,9 @@ fn main() -> Result<()> {
             args.top, signals_path
         );
         let mut uid_hist = HashMap::new();
-        let signals = read_csv(&signals_path).context("Failed to read signals file")?;
+        let signals = read_csv(signals_path).context("Failed to read signals file")?;
         for signal in signals {
-            *uid_hist.entry(signal.uid).or_insert(0 as usize) += 1;
+            *uid_hist.entry(signal.uid).or_insert(0_usize) += 1;
         }
         // Get top most common UIDs
         let mut uid_hist_vec: Vec<_> = uid_hist.into_iter().collect();
@@ -203,7 +203,7 @@ fn main() -> Result<()> {
         println!("Found {} UIDs", uids.len());
 
         if let Some(ref signals_path) = signals_path {
-            let signals = read_csv(&signals_path).context("Failed to read signals file")?;
+            let signals = read_csv(signals_path).context("Failed to read signals file")?;
             let hex_uids = uids.iter().map(|uid| uid.encode()).collect::<Vec<u64>>();
 
             let signals_filtered = signals
@@ -233,7 +233,7 @@ fn main() -> Result<()> {
                 csv::Writer::from_path(csv_outpath).expect("Unable to create output CSV file");
             for filtered_record in signals_filtered {
                 csv_writer
-                    .serialize(&filtered_record)
+                    .serialize(filtered_record)
                     .expect("Unable to write filtered CSV file");
             }
         }

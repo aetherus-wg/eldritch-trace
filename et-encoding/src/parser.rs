@@ -26,12 +26,16 @@ pub fn parse_encodings(src: &str) -> Result<Vec<Encoding>> {
 
     let mut encodings = Vec::new();
 
+    // Regex parse to extract name and optional attr from
+    // "<name> {<attr>}" or "<name>{<attr>}"
+    let re = regex::Regex::new(r"(\w*)(?:\s*\{([^}]*)\})?").unwrap();
+
     for block in document.blocks {
         if let Block::Table(table) = block {
             let bits_ranges: Vec<BitsRange> = table.rows[0]
                 .iter()
                 .map(|c| match &c[0] {
-                    Inline::Text(s) => BitsRange::from_str(&s),
+                    Inline::Text(s) => BitsRange::from_str(s),
                     _ => Err(anyhow!("Expected text in header cell, received: {:?}", c[0])),
                 })
                 .collect::<Result<Vec<_>, _>>()?; // header row
@@ -44,21 +48,18 @@ pub fn parse_encodings(src: &str) -> Result<Vec<Encoding>> {
                     .zip(fields_md.iter().zip(encodings_md.iter()))
                 {
                     let field_str = unwrap_inline(&field_md[0])?;
-                    let encoding = BitsMatch::parse(&unwrap_inline(&encoding_md[0])?, &bit_range)
+                    let encoding = BitsMatch::parse(&unwrap_inline(&encoding_md[0])?, bit_range)
                         .context("Failed to parse bits match")?;
                     if field_str.starts_with('_') && field_str.len() > 1 {
                         specified = false;
                     }
 
-                    // TODO: Regex parse to extract name and optional attr from
-                    // "<name> {<attr>}" or "<name>{<attr>}"
-                    let re = regex::Regex::new(r"(\w*)(?:\s*\{([^}]*)\})?").unwrap();
                     let field = if let Some(caps) = re.captures(&field_str) {
                         let name = caps.get(1).unwrap().as_str().to_string();
                         let attr = caps.get(2).map(|m| m.as_str().to_string());
                         if attr == Some("SrcId".to_string()) {
                             Field::from_str(name.as_str())?
-                        } else if name == "_" || name == "" || name == "X" {
+                        } else if name == "_" || name == "X" || name.is_empty() {
                             Field::X {
                                 size: bit_range.size(),
                                 attr,
@@ -87,7 +88,7 @@ pub fn parse_encodings(src: &str) -> Result<Vec<Encoding>> {
 
 /// Find Encoding with attribute "Direction" which is specified
 /// and replace all instances for the X (don't care) with the same attribute specified
-pub fn resolved_dir_encodings(encodings: &Vec<Encoding>) -> Vec<Encoding> {
+pub fn resolved_dir_encodings(encodings: &[Encoding]) -> Vec<Encoding> {
     let dir_fields: Vec<Field> = encodings
         .iter()
         .map(|Encoding(fields_encoding)| fields_encoding)
@@ -129,7 +130,7 @@ pub fn resolved_dir_encodings(encodings: &Vec<Encoding>) -> Vec<Encoding> {
 
 /// Get a list of all field names from the encoding definiton, which can be supplied
 /// to the DSL parser as valid FieldId names
-pub fn extract_fields(encodings: &Vec<Encoding>) -> Vec<String> {
+pub fn extract_fields(encodings: &[Encoding]) -> Vec<String> {
     encodings
         .iter()
         .flat_map(|Encoding(fields_encoding)| {

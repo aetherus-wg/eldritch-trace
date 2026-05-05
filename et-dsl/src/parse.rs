@@ -95,11 +95,11 @@ where
                         e.emit(Rich::custom(
                             span,
                             format!(
-                                "Unknown source id type `{}`. Did you mean `{}`?\nTry `{}` instead of `{}`.",
+                                "Unknown source id type `{}`. Did you mean `{}`?\nTry `{}({})` instead of `{}({})`.",
                                 ident,
                                 stripped,
-                                format!("{}({})", stripped, arg.to_string()),
-                                format!("{}({})", ident, arg.to_string())
+                                stripped, arg,
+                                ident, arg
                             ),
                         ));
                     } else {

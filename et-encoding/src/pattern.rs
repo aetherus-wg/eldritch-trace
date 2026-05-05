@@ -31,22 +31,22 @@ pub fn search_trie(trie: &Trie, pattern: &Pattern) -> Result<(BitsMatch, SrcId)>
     let mut encodings = Vec::new();
     #[derive(Clone, Hash, PartialEq, Eq)]
     struct StackEntry<'a> {
-        node: &'a TrieNode,
+        node:          &'a TrieNode,
         pattern_index: usize,
-        prev_trie_x: bool,
-        bits_match: BitsMatch,
-        encoding: Vec<String>,
-        src_id: SrcId,
+        prev_trie_x:   bool,
+        bits_match:    BitsMatch,
+        encoding:      Vec<String>,
+        src_id:        SrcId,
     }
     impl<'a> StackEntry<'a> {
         pub fn step_pattern(&self) -> StackEntry<'a> {
             StackEntry {
-                node: &self.node,
+                node:          self.node,
                 pattern_index: self.pattern_index + 1,
-                prev_trie_x: self.prev_trie_x,
-                bits_match: self.bits_match.clone(),
-                encoding: self.encoding.clone(),
-                src_id: self.src_id.clone(),
+                prev_trie_x:   self.prev_trie_x,
+                bits_match:    self.bits_match.clone(),
+                encoding:      self.encoding.clone(),
+                src_id:        self.src_id.clone(),
             }
         }
         pub fn step_trie(
@@ -55,10 +55,10 @@ pub fn search_trie(trie: &Trie, pattern: &Pattern) -> Result<(BitsMatch, SrcId)>
             child_node: &'a trie::TrieNode,
         ) -> StackEntry<'a> {
             StackEntry {
-                node: &child_node,
+                node:          child_node,
                 pattern_index: self.pattern_index,
-                prev_trie_x: matches!(child_field, trie::Field::X { attr: None, .. }),
-                bits_match: self.bits_match.combine(child_field.bits_match()),
+                prev_trie_x:   matches!(child_field, trie::Field::X { attr: None, .. }),
+                bits_match:    self.bits_match.combine(child_field.bits_match()),
                 encoding: {
                     let mut encoding = self.encoding.clone();
                     encoding.push(child_field.to_string());
@@ -134,7 +134,7 @@ pub fn search_trie(trie: &Trie, pattern: &Pattern) -> Result<(BitsMatch, SrcId)>
             match (pattern_field, child_field) {
                 (Field::SrcId(req_type), trie::Field::SrcId(enc_type)) => {
                     assert!(child_node.is_terminal);
-                    let strict_type = match req_type.combine(&enc_type) {
+                    let strict_type = match req_type.combine(enc_type) {
                         Some(strict_type) => strict_type,
                         None => {
                             trace!(
@@ -145,7 +145,7 @@ pub fn search_trie(trie: &Trie, pattern: &Pattern) -> Result<(BitsMatch, SrcId)>
                         }
                     };
 
-                    let mut new_entry = entry.step_trie(&child_field, &child_node).step_pattern();
+                    let mut new_entry = entry.step_trie(child_field, child_node).step_pattern();
                     if let Some(last) = new_entry.encoding.last_mut() {
                         *last = strict_type.to_string();
                     }
@@ -153,20 +153,20 @@ pub fn search_trie(trie: &Trie, pattern: &Pattern) -> Result<(BitsMatch, SrcId)>
                 }
                 (Field::Field(name), trie::Field::Named { name: child_name, .. }) => {
                     if name == child_name {
-                        stack.push(entry.step_trie(&child_field, &child_node).step_pattern());
+                        stack.push(entry.step_trie(child_field, child_node).step_pattern());
                         check_prev_x = false; // Match implies barrier on the X in the Trie
                     }
                 }
                 (Field::X, trie::Field::X { .. }) => {
-                    stack.push(entry.step_trie(&child_field, &child_node));
-                    stack.push(entry.step_trie(&child_field, &child_node).step_pattern());
+                    stack.push(entry.step_trie(child_field, child_node));
+                    stack.push(entry.step_trie(child_field, child_node).step_pattern());
                 }
                 (Field::X, trie::Field::SrcId(src_id)) => {
                     // End of trie, so advancing only pattern is certainly going to be dropped
                     assert!(child_node.is_terminal);
                     stack.push(
                         entry
-                            .step_trie(&child_field, &child_node)
+                            .step_trie(child_field, child_node)
                             .step_pattern()
                             .with_src_id(src_id.clone()),
                     );

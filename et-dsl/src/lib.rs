@@ -6,9 +6,9 @@
 //! ## Key Concepts
 //!
 //! - **Sources**: Define event sources with identifiers (e.g. `Mat("water")`,
-//! `Mat(0)`, `MatSurf(0xFFFE)`)
+//!   `Mat(0)`, `MatSurf(0xFFFE)`)
 //! - **Patterns**: Define matching criteria for event types formed of field concatenations
-//! (e.g., `MCRT | Material | Elastic | X | etc.`)
+//!   (e.g., `MCRT | Material | Elastic | X | etc.`)
 //! - **Sequences**: Define ordered lists of events to match
 //! - **Rules**: Define conditions that must be satisfied for matching
 //!
@@ -107,27 +107,21 @@ pub fn extract_ledger_path(
         .unwrap_or_else(|| std::path::Path::new("."));
     let mut ledger_path = None;
     for decl in declarations.iter() {
-        match decl.body {
-            (Expr::LedgerPath(path), _span) => {
-                if let Some((_, first_span)) = ledger_path {
-                    failure(
-                        "Multiple ledger/photons paths specified".to_string(),
-                        ("another declaration here".to_string(), decl.span),
-                        [("first declaration here".to_string(), first_span)],
-                        script_src,
-                    );
-                } else {
-                    ledger_path = Some((script_dirname.join(path), decl.span));
-                }
+        if let (Expr::LedgerPath(path), _span) = decl.body {
+            if let Some((_, first_span)) = ledger_path {
+                failure(
+                    "Multiple ledger/photons paths specified".to_string(),
+                    ("another declaration here".to_string(), decl.span),
+                    [("first declaration here".to_string(), first_span)],
+                    script_src,
+                );
+            } else {
+                ledger_path = Some((script_dirname.join(path), decl.span));
             }
-            _ => (),
         }
     }
 
-    match ledger_path {
-        Some((path, _)) => Some(path),
-        None => None,
-    }
+    ledger_path.map(|(path, _)| path)
 }
 
 /// Extract the signals path from parsed declarations.
@@ -154,27 +148,21 @@ pub fn extract_signals_path(
         .unwrap_or_else(|| std::path::Path::new("."));
     let mut signals_path = None;
     for decl in declarations.iter() {
-        match decl.body {
-            (Expr::SignalsPath(path), _span) => {
-                if let Some((_, first_span)) = signals_path {
-                    failure(
-                        "Multiple signals paths specified".to_string(),
-                        ("another declaration here".to_string(), decl.span),
-                        [("first declaration here".to_string(), first_span)],
-                        script_src,
-                    );
-                } else {
-                    signals_path = Some((script_dirname.join(path), decl.span));
-                }
+        if let (Expr::SignalsPath(path), _span) = decl.body {
+            if let Some((_, first_span)) = signals_path {
+                failure(
+                    "Multiple signals paths specified".to_string(),
+                    ("another declaration here".to_string(), decl.span),
+                    [("first declaration here".to_string(), first_span)],
+                    script_src,
+                );
+            } else {
+                signals_path = Some((script_dirname.join(path), decl.span));
             }
-            _ => (),
         }
     }
 
-    match signals_path {
-        Some((path, _)) => Some(path),
-        None => None,
-    }
+   signals_path.map(|(path, _)| path)
 }
 
 // -----------------------------------------------
@@ -218,17 +206,21 @@ pub fn parse_script<'src>(
     script_src: &'src str,
     field_dict: &HashSet<String>,
 ) -> Vec<Declaration<'src>> {
-    let tokens = lexer(&field_dict)
+    let tokens = lexer(field_dict)
         .parse(script_src)
         .into_result()
         .unwrap_or_else(|errs| {
-            errs.iter().for_each(|err| parse_failure(&err, script_src));
+            // NOTE: We only need to take the first failure,
+            // but we might show all failures before exiting if it's necessary
+            if let Some(err) = errs.first() {
+                parse_failure(err, script_src);
+            }
             std::process::exit(1)
         });
 
     debug!("Tokens: {}", tokens.iter().map(|t| t.0.to_string()).join(" "));
 
-    let declarations = expr_parser()
+    expr_parser()
         .parse(
             tokens
                 .as_slice()
@@ -236,11 +228,11 @@ pub fn parse_script<'src>(
         )
         .into_result()
         .unwrap_or_else(|errs| {
-            errs.iter().for_each(|err| parse_failure(&err, script_src));
+            if let Some(err) = errs.first() {
+                parse_failure(err, script_src);
+            }
             std::process::exit(1)
-        });
-
-    declarations
+        })
 }
 
 // -----------------------------------------------

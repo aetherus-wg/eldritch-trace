@@ -172,23 +172,6 @@ pub struct Declaration<'src> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
-    fn default_dict() -> HashSet<String> {
-        let mut dict = HashSet::new();
-        dict.insert("MCRT".to_string());
-        dict.insert("Material".to_string());
-        dict.insert("Interface".to_string());
-        dict.insert("Elastic".to_string());
-        dict.insert("Inelastic".to_string());
-        dict.insert("Reflector".to_string());
-        dict.insert("Emission".to_string());
-        dict.insert("Detection".to_string());
-        dict.insert("Backward".to_string());
-        dict.insert("Forward".to_string());
-        dict.insert("X".to_string());
-        dict
-    }
-
     #[test]
     fn test_src_id_to_encoding_id() {
         assert!(matches!(

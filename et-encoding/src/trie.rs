@@ -11,6 +11,7 @@ use anyhow::{Error, Result, anyhow};
 use std::{collections::HashSet, str::FromStr};
 
 /// Field similar to [`crate::pattern::Field`], explicit definition from the encoding spec
+#[allow(clippy::derived_hash_with_manual_eq)]
 #[derive(Debug, Clone, Hash)]
 pub(crate) enum Field {
     /// Don't care, with attribute to hot swap all valid values with the same attribute
@@ -94,7 +95,7 @@ impl PartialEq for Field {
                 },
             ) => {
                 // name1==name2 |-> bits1==bits2 and size1==size2
-                assert!(
+                debug_assert!(
                     name1 != name2 || (bits1 == bits2 && size1 == size2),
                     "Field with the same name has different encodings"
                 );
@@ -135,6 +136,12 @@ pub(crate) struct TrieNode {
 #[derive(Debug)]
 pub struct Trie {
     pub(crate) root: TrieNode,
+}
+
+impl Default for Trie {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Trie {
@@ -227,7 +234,7 @@ impl Trie {
     /// assert_eq!(bits_match, BitsMatch{mask: 0x0ff00000, value: 0x03600000});
     /// ```
     pub fn get(&self, query: &Pattern) -> Result<(BitsMatch, SrcId)> {
-        search_trie(&self, query)
+        search_trie(self, query)
     }
 
     /// Returns a list of all fields

@@ -28,11 +28,11 @@ impl From<aetherus_events::filter::BitsMatch> for BitsMatch {
     }
 }
 
-impl Into<aetherus_events::filter::BitsMatch> for BitsMatch {
-    fn into(self) -> aetherus_events::filter::BitsMatch {
+impl From<BitsMatch> for aetherus_events::filter::BitsMatch {
+    fn from(other: BitsMatch) -> Self {
         aetherus_events::filter::BitsMatch {
-            mask: self.mask,
-            value: self.value,
+            mask: other.mask,
+            value: other.value,
         }
     }
 }
@@ -96,8 +96,8 @@ impl BitsMatch {
                     for c in rest.chars() {
                         match c {
                             'x' => {
-                                mask = mask << 1;
-                                value = value << 1;
+                                mask <<= 1;
+                                value <<= 1;
                             }
                             '0' | '1' => {
                                 mask = (mask << 1) | 1;

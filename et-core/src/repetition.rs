@@ -64,7 +64,7 @@ impl Repetition {
     pub fn check(&self, count: usize) -> bool {
         let min = self.min();
         let max = self.max();
-        count >= min && max.map_or(true, |max| count <= max)
+        count >= min && max.is_none_or(|max| count <= max)
     }
 }
 

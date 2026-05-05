@@ -114,9 +114,7 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
     // Ledger traversal loop
     // TODO: Entries in the stack can be evaluated in parallel
     // and querry of the Ledger should not require a lock, since the Ledger is immutable
-    while !stack.is_empty() {
-        let mut rule = stack.pop().unwrap();
-
+    if let Some(mut rule) = stack.pop() {
         //println!("Evaluating rule at UID: {:?}, condition index: {}, conditions: {:?}", rule.uid, rule.cond_idx, rule.conds);
 
         let mut pass = true;
@@ -144,7 +142,7 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
                         }
                         Predicate::Repeat(r) => {
                             if event_check {
-                                *cnt = *cnt + 1;
+                                *cnt += 1;
                                 if r.min() > *cnt {
                                     // Just increment count and stay on the same sequence condition until reaching the minimum required repetitions
                                 } else {
@@ -188,7 +186,7 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
                         }
                         Predicate::Repeat(r) => {
                             if event_check {
-                                *cnt = *cnt + 1;
+                                *cnt += 1;
                                 if r.min() > *cnt {
                                     // Just increment count and stay on the same sequence condition until reaching the minimum required repetitions
                                 } else {
@@ -234,7 +232,7 @@ pub fn find_uids_with_rule(ledger: &Ledger, rule: &Rule) -> Result<Vec<Uid>> {
                 if rule.cond_idx + 1 == rule.conds.len() {
                     rule.cond_idx = 0;
                 } else {
-                    rule.cond_idx = rule.cond_idx + 1;
+                    rule.cond_idx += 1;
                 }
             }
 

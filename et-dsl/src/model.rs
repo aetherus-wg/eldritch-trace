@@ -50,7 +50,7 @@ impl Match {
     pub fn optimise(self) -> Self {
         match self {
             Match::And(ref left, ref right) => match (left.as_ref(), right.as_ref()) {
-                (Match::Bits(bits1), Match::Bits(bits2)) => Match::Bits(bits1.combine(&bits2)),
+                (Match::Bits(bits1), Match::Bits(bits2)) => Match::Bits(bits1.combine(bits2)),
                 (Match::X, other) | (other, Match::X) => other.clone().optimise(),
                 _ => self,
             },
@@ -106,20 +106,20 @@ impl Check<u32> for Match {
     }
 }
 
-impl Into<et_encoding::SrcId> for SrcId<'_> {
-    fn into(self) -> et_encoding::SrcId {
-        match self {
-            Self::None            => et_encoding::SrcId::SrcId,
-            Self::Mat(_)          => et_encoding::SrcId::MatId,
-            Self::Surf(_)         => et_encoding::SrcId::SurfId,
-            Self::MatSurf(_)      => et_encoding::SrcId::MatSurfId,
-            Self::Light(_)        => et_encoding::SrcId::LightId,
-            Self::Detector(_)     => et_encoding::SrcId::DetectorId,
-            Self::MatName(_)      => et_encoding::SrcId::MatId,
-            Self::SurfName(_)     => et_encoding::SrcId::SurfId,
-            Self::MatSurfName(_)  => et_encoding::SrcId::MatSurfId,
-            Self::LightName(_)    => et_encoding::SrcId::LightId,
-            Self::DetectorName(_) => et_encoding::SrcId::DetectorId,
+impl From<SrcId<'_>> for et_encoding::SrcId {
+    fn from(other: SrcId) -> Self {
+        match other {
+            SrcId::None            => et_encoding::SrcId::SrcId,
+            SrcId::Mat(_)          => et_encoding::SrcId::MatId,
+            SrcId::Surf(_)         => et_encoding::SrcId::SurfId,
+            SrcId::MatSurf(_)      => et_encoding::SrcId::MatSurfId,
+            SrcId::Light(_)        => et_encoding::SrcId::LightId,
+            SrcId::Detector(_)     => et_encoding::SrcId::DetectorId,
+            SrcId::MatName(_)      => et_encoding::SrcId::MatId,
+            SrcId::SurfName(_)     => et_encoding::SrcId::SurfId,
+            SrcId::MatSurfName(_)  => et_encoding::SrcId::MatSurfId,
+            SrcId::LightName(_)    => et_encoding::SrcId::LightId,
+            SrcId::DetectorName(_) => et_encoding::SrcId::DetectorId,
         }
     }
 }
@@ -240,99 +240,87 @@ pub fn resolve_ast(
     let mut resolved_src_dict = HashMap::new();
     for decl in declarations.iter() {
         let (expr, span) = &decl.body;
-        match &decl.decl_type {
-            DeclType::SrcId => {
-                let resolved_src_id = expr
-                    .resolve_src(&src_dict)
-                    .unwrap_or_else(|e| {
-                        let err = e.with_span(*span);
-                        failure(
-                            format!("Failed to resolve source identifier {:?}: {}", expr, err.to_string()),
-                            ("not found inside Ledger".into(), err.span().unwrap()),
-                            None,
-                            src,
-                        )
-                    });
+        if decl.decl_type == DeclType::SrcId {
+            let resolved_src_id = expr
+                .resolve_src(src_dict)
+                .unwrap_or_else(|e| {
+                    let err = e.with_span(*span);
+                    failure(
+                        format!("Failed to resolve source identifier {:?}: {}", expr, err),
+                        ("not found inside Ledger".into(), err.span().unwrap()),
+                        None,
+                        src,
+                    )
+                });
 
-                debug!("Resolved {:?} into: {:?}", expr, resolved_src_id);
-                resolved_src_dict.insert(decl.name, resolved_src_id);
-            }
-            _ => (),
+            debug!("Resolved {:?} into: {:?}", expr, resolved_src_id);
+            resolved_src_dict.insert(decl.name, resolved_src_id);
         }
     }
 
     let mut resolved_pattern_dict = HashMap::new();
     for decl in declarations.iter() {
         let (expr, span) = &decl.body;
-        match &decl.decl_type {
-            DeclType::Pattern => {
-                let resolved_pattern = expr
-                    .resolve_pattern(&src_dict, &trie, &resolved_src_dict)
-                    .unwrap_or_else(|e| {
-                        let err = e.with_span(*span);
-                        failure(
-                            format!("Failed to resolve pattern {:?}: {}", expr, err.to_string()),
-                            ("not found inside Trie".into(), err.span().unwrap()),
-                            None,
-                            src,
-                        );
-                    });
-                debug!("Resolved {:?} into: {:?}", expr, resolved_pattern);
-                resolved_pattern_dict.insert(decl.name, resolved_pattern);
-            }
-            _ => (),
+        if decl.decl_type == DeclType::Pattern {
+            let resolved_pattern = expr
+                .resolve_pattern(src_dict, trie, &resolved_src_dict)
+                .unwrap_or_else(|e| {
+                    let err = e.with_span(*span);
+                    failure(
+                        format!("Failed to resolve pattern {:?}: {}", expr, err),
+                        ("not found inside Trie".into(), err.span().unwrap()),
+                        None,
+                        src,
+                    );
+                });
+            debug!("Resolved {:?} into: {:?}", expr, resolved_pattern);
+            resolved_pattern_dict.insert(decl.name, resolved_pattern);
         }
     }
 
     let mut resolved_seq_dict = HashMap::new();
     for decl in declarations.iter() {
         let (expr, span) = &decl.body;
-        match &decl.decl_type {
-            DeclType::Sequence => {
-                let resolved_seq = expr
-                    .resolve_seq(&src_dict, &trie, &resolved_src_dict, &resolved_pattern_dict)
-                    .unwrap_or_else(|e| {
-                        let err = e.with_span(*span);
-                        failure(
-                            format!("Failed to resolve sequence {:?}: {}", expr, err.to_string()),
-                            ("failed to resolve sequence".into(), err.span().unwrap()),
-                            None,
-                            src,
-                        );
-                    });
-                debug!("Resolved {:?} into: {:?}", expr, resolved_seq);
-                resolved_seq_dict.insert(decl.name, resolved_seq);
-            }
-            _ => (),
+        if decl.decl_type == DeclType::Sequence {
+            let resolved_seq = expr
+                .resolve_seq(src_dict, trie, &resolved_src_dict, &resolved_pattern_dict)
+                .unwrap_or_else(|e| {
+                    let err = e.with_span(*span);
+                    failure(
+                        format!("Failed to resolve sequence {:?}: {}", expr, err),
+                        ("failed to resolve sequence".into(), err.span().unwrap()),
+                        None,
+                        src,
+                    );
+                });
+            debug!("Resolved {:?} into: {:?}", expr, resolved_seq);
+            resolved_seq_dict.insert(decl.name, resolved_seq);
         }
     }
 
     let mut resolved_rule_dict = HashMap::new();
     for decl in declarations.iter() {
         let (expr, span) = &decl.body;
-        match &decl.decl_type {
-            DeclType::Rule => {
-                let resolved_rule = expr
-                    .resolve_rule(
-                        &src_dict,
-                        &trie,
-                        &resolved_src_dict,
-                        &resolved_pattern_dict,
-                        &resolved_seq_dict,
-                    )
-                    .unwrap_or_else(|e| {
-                        let err = e.with_span(*span);
-                        failure(
-                            format!("Failed to resolve rule {:?}: {}", expr, err.to_string()),
-                            ("failed to resolve rule".into(), err.span().unwrap()),
-                            None,
-                            src,
-                        );
-                    });
-                debug!("Resolved {:?} into: {:?}", expr, resolved_rule);
-                resolved_rule_dict.insert(decl.name.to_owned(), resolved_rule);
-            }
-            _ => (),
+        if decl.decl_type == DeclType::Rule {
+            let resolved_rule = expr
+                .resolve_rule(
+                    src_dict,
+                    trie,
+                    &resolved_src_dict,
+                    &resolved_pattern_dict,
+                    &resolved_seq_dict,
+                )
+                .unwrap_or_else(|e| {
+                    let err = e.with_span(*span);
+                    failure(
+                        format!("Failed to resolve rule {:?}: {}", expr, err),
+                        ("failed to resolve rule".into(), err.span().unwrap()),
+                        None,
+                        src,
+                    );
+                });
+            debug!("Resolved {:?} into: {:?}", expr, resolved_rule);
+            resolved_rule_dict.insert(decl.name.to_owned(), resolved_rule);
         }
     }
 
@@ -367,7 +355,7 @@ impl<'src> Expr<'src> {
                 let src_id_type = src_id_matches
                     .iter()
                     .fold(et_encoding::SrcId::SrcId, |acc, (src_id, _)| {
-                        acc.combine(&src_id).unwrap()
+                        acc.combine(src_id).unwrap()
                     });
                 let src_id_match = Match::Any(
                     src_id_matches
@@ -474,7 +462,7 @@ impl<'src> Expr<'src> {
                     )
                     .collect::<Result<_,_>>()?
             ),
-            Self::Perm(_exprs) => return Err(Error::Unspanned(format!("Permutation feature not implemented yet"))),
+            Self::Perm(_exprs) => return Err(Error::Unspanned("Permutation feature not implemented yet".to_string())),
             Self::Any(exprs) => SeqTree::Pattern(
                 Predicate::Unit,
                 Match::Any( exprs
@@ -636,9 +624,7 @@ impl<'src> Expr<'src> {
         Ok(match self {
             Self::Rule(conditions) => {
                 if conditions.is_empty() {
-                    return Err(Error::Unspanned(format!(
-                        "Rule must have at least one condition"
-                    )));
+                    return Err(Error::Unspanned("Rule must have at least one condition".to_string()));
                 }
                 let resolved_conditions = conditions
                     .iter()

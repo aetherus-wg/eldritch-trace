@@ -377,7 +377,7 @@ mod tests {
         let dict = default_dict();
         let tokens = lexer(&dict).parse("  X   Z  ").unwrap();
         // Just verify tokens exist and have some content
-        assert!(tokens.len() >= 1);
+        assert!(!tokens.is_empty());
     }
 
     #[test]

@@ -72,7 +72,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     // Read ledger for semantic model resolution
     let ledger =
-        aetherus_events::reader::read_ledger(&ledger_path).expect("Failed to read ledger file");
+        aetherus_events::read::read_ledger(&ledger_path).expect("Failed to read ledger file");
     let src_dict = ledger.get_src_dict();
 
     // Benchmark 3: Resolve declarations and build semantic model

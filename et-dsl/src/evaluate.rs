@@ -3,7 +3,7 @@
 //! This module provides functionality for evaluating rules
 //! against Ledger hierarchy of events that encodes the chain of events
 
-use aetherus_events::{Ledger, ledger::Uid};
+use aetherus_events::{Ledger, Uid};
 use anyhow::Result;
 
 use crate::Check;

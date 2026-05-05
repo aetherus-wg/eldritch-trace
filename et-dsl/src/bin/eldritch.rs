@@ -1,8 +1,8 @@
 //! Eldritch-Trace DSL command-line tool
 
 use aetherus_events::{
-    ledger::Uid,
-    reader::{CsvRecord, read_csv, read_ledger},
+    Uid,
+    read::{CsvRecord, read_csv, read_ledger},
 };
 use anyhow::{Context, Result};
 use clap::Parser;

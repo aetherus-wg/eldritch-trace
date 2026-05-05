@@ -1,0 +1,64 @@
+# Benchmark DSL script using sources available in the simulation_ledger.json
+# Sources in ledger: Mat("translucent_pla")=2, Surf("Target")=1, Mat("mist")=1,
+#                 MatSurf("TranslucentPlate:TranslucentPLA")=65535,
+#                 Mat("air")=0, Surf("Background")=0
+ledger = "./simulation_ledger.json"
+
+# Define material and surface identifiers
+src pla_id   = Mat("translucent_pla")
+src mist_id  = Mat("mist")
+src air_id   = Mat(0)
+src target_id = Surf("Target")
+src bg_id    = Surf("Background")
+src plate_id = any[MatSurf("TranslucentPlate:TranslucentPLA"), Mat("translucent_pla")]
+
+# Define encoding patterns to match for
+pattern emission         = Emission  | X                       | Light(0)
+pattern material_elastic = MCRT      | Material  | Elastic | X | pla_id
+pattern surf_reflect     = MCRT      | Reflector | X           | target_id
+pattern detection        = Detection | X                       | Detector(0)
+
+# Define sequences
+sequence detect_seq = seq[
+    emission,
+    * X,
+    detection,
+]
+
+# Define rules
+rule simple_detect = {
+    detection,
+}
+
+rule plate_reflect = {
+    ! MCRT | Interface | Refraction | plate_id,
+    seq[
+        emission,
+        * X,
+        MCRT | Interface | Reflection | plate_id,
+        * X,
+        detection,
+    ],
+}
+
+rule plate_subsurface_scatter = {
+    ! MCRT | Reflector | X | target_id,
+    ! MCRT | Reflector | X | bg_id,
+    seq[
+        emission,
+        * X,
+        MCRT | Interface | Refraction | plate_id,
+        + material_elastic,
+        * X,
+        detection,
+    ],
+}
+
+rule target_reflect = {
+    surf_reflect,
+    seq[
+        emission,
+        * X,
+        detection,
+    ],
+}

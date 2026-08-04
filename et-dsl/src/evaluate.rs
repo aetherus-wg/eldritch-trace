@@ -3,6 +3,7 @@
 //! This module provides functionality for evaluating rules
 //! against Ledger hierarchy of events that encodes the chain of events
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use aetherus_events::ledger::LedgerNode;
@@ -36,7 +37,7 @@ impl Rule {
 ///
 /// A list of matching UIDs
 pub fn find_uids_with_rule(ledger: &LedgerTree, rule: &Rule) -> Result<Vec<Uid>> {
-    let mut found_uids: Vec<Uid> = Vec::new();
+    let mut found_uids: HashSet<Uid> = HashSet::new();
 
     #[derive(Clone, Debug)]
     pub enum CondTraverse<'a> {
@@ -59,7 +60,7 @@ pub fn find_uids_with_rule(ledger: &LedgerTree, rule: &Rule) -> Result<Vec<Uid>>
     }
 
     impl RuleTraverse<'_> {
-        pub fn satfisfied(&self) -> bool {
+        pub fn satisfied(&self) -> bool {
             if self.cond_idx != 0 {
                 return false;
             }
@@ -118,23 +119,24 @@ pub fn find_uids_with_rule(ledger: &LedgerTree, rule: &Rule) -> Result<Vec<Uid>>
     // Ledger traversal loop
     // TODO: Entries in the stack can be evaluated in parallel
     // and querry of the Ledger should not require a lock, since the Ledger is immutable
-    while let Some(mut rule) = stack.pop() {
+    while let Some(mut rule_trav) = stack.pop() {
         //println!("Evaluating rule at UID: {:?}, condition index: {}, conditions: {:?}", rule.uid, rule.cond_idx, rule.conds);
 
-        let uid = rule.node.uid().unwrap();
-        let event = *rule.node.event();
+        let uid = rule_trav.node.uid().unwrap();
+        let event = *rule_trav.node.event();
 
         let mut pass = true;
         let mut remove = false;
         let mut bifurcate = false;
+        let mut node_checked = false;
 
         let mut recheck = true;
         while recheck {
-            let cond = &mut rule.conds[rule.cond_idx];
+            let cond = &mut rule_trav.conds[rule_trav.cond_idx];
             recheck = false;
             match cond {
                 CondTraverse::Pattern { pred, event_match, cnt } => {
-                    let event_check = event_match.check(*rule.node.event());
+                    let event_check = event_match.check(*rule_trav.node.event());
                     match pred {
                         Predicate::Unit => {
                             if event_check {
@@ -227,24 +229,28 @@ pub fn find_uids_with_rule(ledger: &LedgerTree, rule: &Rule) -> Result<Vec<Uid>>
         );
 
         if pass {
-            let cond_idx = rule.cond_idx;
-            let next_nodes = rule.node.children();
+            let cond_idx = rule_trav.cond_idx;
+            let next_nodes = rule_trav.node.children();
 
             if remove {
-                rule.conds.remove(rule.cond_idx);
-                if rule.conds.len() == cond_idx {
-                    rule.cond_idx = 0;
+                rule_trav.conds.remove(rule_trav.cond_idx);
+                if rule_trav.conds.len() == cond_idx {
+                    rule_trav.cond_idx = 0;
+                    node_checked = true;
                 }
             } else {
-                if rule.cond_idx + 1 == rule.conds.len() {
-                    rule.cond_idx = 0;
+                if rule_trav.cond_idx + 1 == rule_trav.conds.len() {
+                    rule_trav.cond_idx = 0;
+                    node_checked = true;
                 } else {
-                    rule.cond_idx += 1;
+                    rule_trav.cond_idx += 1;
                 }
             }
 
+            // Advance seq_idx of the sequence bifurcated, while the base case stays on the same
+            // pattern in the sequence for more matches
             if bifurcate {
-                let mut bifurcated_rule = rule.clone();
+                let mut bifurcated_rule = rule_trav.clone();
                 if let CondTraverse::Seq {seq_idx, seq, cnt:_} = bifurcated_rule.conds[cond_idx]
                 {
                     bifurcated_rule.conds[cond_idx] = CondTraverse::Seq {
@@ -258,7 +264,7 @@ pub fn find_uids_with_rule(ledger: &LedgerTree, rule: &Rule) -> Result<Vec<Uid>>
                     ));
                 }
 
-                if rule.cond_idx == 0 {
+                if node_checked {
                     for next_node in next_nodes.iter() {
                         stack.push(RuleTraverse {
                             node: next_node.clone(),
@@ -266,36 +272,33 @@ pub fn find_uids_with_rule(ledger: &LedgerTree, rule: &Rule) -> Result<Vec<Uid>>
                             conds: bifurcated_rule.conds.clone(),
                         });
                     }
-                    if next_nodes.is_empty() && rule.satfisfied() {
+                    if next_nodes.is_empty() && bifurcated_rule.satisfied() {
                         //println!("Found a match for rule with UID: {:?}", rule.uid);
-                        if !found_uids.contains(&uid) {
-                            found_uids.push(uid);
-                        }
+                        found_uids.insert(uid);
                     }
                 } else {
                     stack.push(bifurcated_rule);
                 }
             }
 
-            if rule.cond_idx == 0 {
+
+            if node_checked {
                 for next_node in next_nodes.iter() {
                     stack.push(RuleTraverse {
                         node: next_node.clone(),
-                        cond_idx: rule.cond_idx,
-                        conds: rule.conds.clone(),
+                        cond_idx: rule_trav.cond_idx,
+                        conds: rule_trav.conds.clone(),
                     });
                 }
-                if next_nodes.is_empty() && rule.satfisfied() {
+                if next_nodes.is_empty() && rule_trav.satisfied() {
                     //println!("Found a match for rule with UID: {:?}", rule.uid);
-                    if !found_uids.contains(&uid) {
-                        found_uids.push(uid);
-                    }
+                    found_uids.insert(uid);
                 }
             } else {
-                stack.push(rule);
+                stack.push(rule_trav);
             }
         }
     }
 
-    Ok(found_uids)
+    Ok(found_uids.into_iter().collect())
 }

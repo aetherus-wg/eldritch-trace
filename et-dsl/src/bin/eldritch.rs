@@ -2,12 +2,12 @@
 
 use events_ledger::{
     prelude::*,
-    read::{CsvRecord, read_csv, read_ledger},
+    read::read_ledger,
 };
 use anyhow::{Context, Result};
 use clap::Parser;
 use env_logger::Env;
-use et_dsl::{extract_ledger_path, extract_signals_path, model::resolve_ast, parse_script, signals::{read_signals, write_signals}};
+use et_dsl::{extract_ledger_path, extract_signals_path, model::resolve_ast, parse_script, signals::{Record, read_signals, write_signals}};
 use std::{
     collections::HashMap,
     fs,
@@ -210,7 +210,7 @@ fn main() -> Result<()> {
             let signals_filtered = signals
                 .iter()
                 .filter(|record| hex_uids.contains(&record.uid))
-                .collect::<Vec<&CsvRecord>>();
+                .collect::<Vec<&Record>>();
 
             println!(
                 "Matching signals for rule \x1b[32m{}\x1b[0m: len={} from {}",

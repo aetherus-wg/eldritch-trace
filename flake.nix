@@ -30,8 +30,8 @@
           else if builtins.pathExists ./rust-toolchain then
             rust.fromRustupToolchainFile ./rust-toolchain
           else
-            rust.nightly.latest.default.override {
-              extensions = [ "rust-src" "rustfmt" ];
+            rust.stable.latest.default.override {
+              extensions = [ "rust-src" "rustfmt" "rust-analyzer" "clippy" ];
             };
       };
 
@@ -46,12 +46,16 @@
             cargo-watch
             cargo-expand
             rust-analyzer
+            llvmPackages.clang
+            hdf5
             xdot
           ];
 
           env = {
             # Required by rust-analyzer
             RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
+            LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+
           };
         };
       });

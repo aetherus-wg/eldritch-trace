@@ -13,8 +13,9 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use rayon::prelude::*;
 
-use log::info;
+use log::{debug, info};
 
 /// Eldritch-Trace DSL command-line tool
 #[derive(Parser, Debug)]
@@ -27,10 +28,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     emit_trie: bool,
     /// Optional path to the ledger file (overrides script declaration)
-    #[arg(short, long)]
+    #[arg(long)]
     ledger: Option<String>,
     /// Optional path to the signals file (overrides script declaration)
-    #[arg(short, long)]
+    #[arg(long)]
     signals: Option<String>,
     /// Optional output directory for generated DOT files (defaults to ledger directory)
     #[arg(short, long)]
@@ -126,7 +127,9 @@ fn main() -> Result<()> {
     // 5. Read the ledger and resolve the declarations from source values allocated in the ledger
     // and pattern encoding specified in the Trie
     let ledger = read_ledger(&ledger_path).expect("Failed to read ledger file");
+    debug!("Read ledger");
     let ledger_tree: LedgerTree = ledger.into();
+    debug!("LedgerTree consructed converted from deserialised Ledger");
     let src_dict = ledger_tree.get_src_dict();
 
     info!("SrcId dictionary from ledger: {:?}", src_dict);
@@ -202,15 +205,17 @@ fn main() -> Result<()> {
         print!("{:<40}", format!("Rule: \x1b[32m{}\x1b[0m", rule_name));
         let uids = rule.evaluate(&ledger_tree)?;
         println!("Found {} UIDs", uids.len());
+        let hex_uids = uids.iter().map(|uid| uid.encode()).collect::<Vec<u64>>();
 
         if let Some(ref signals_path) = signals_path {
             let signals = read_signals(signals_path).context("Failed to read signals file")?;
-            let hex_uids = uids.iter().map(|uid| uid.encode()).collect::<Vec<u64>>();
+            info!("Read {} signals from {:?}", signals.len(), signals_path);
 
             let signals_filtered = signals
-                .iter()
+                .par_iter()
                 .filter(|record| hex_uids.contains(&record.uid))
                 .collect::<Vec<&Record>>();
+            info!("Filtered {} signals matching rule {}", signals_filtered.len(), rule_name);
 
             println!(
                 "Matching signals for rule \x1b[32m{}\x1b[0m: len={} from {}",

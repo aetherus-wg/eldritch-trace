@@ -370,7 +370,8 @@ impl<'src> Expr<'src> {
                 // TODO: flatten nested Any
                 (src_id_type, src_id_match.optimise())
             }
-            _ => return Err(Error::Unspanned(format!("Unexpected expression type for resolving SrcId: {:?}", self))),
+            _ => return Err(Error::Unspanned(
+                    format!("Unexpected expression type for resolving SrcId: {:?}", self))),
         }
         )
     }
@@ -437,7 +438,7 @@ impl<'src> Expr<'src> {
             }
             _ => {
                 return Err(Error::Unspanned(format!(
-                    "Unexpected expression type for resolving SrcId: {:?}",
+                    "Unexpected expression type for resolving SrcId: {:?} inside pattern",
                     self
                 )));
             }
@@ -465,11 +466,21 @@ impl<'src> Expr<'src> {
             Self::Perm(_exprs) => return Err(Error::Unspanned("Permutation feature not implemented yet".to_string())),
             Self::Any(exprs) => SeqTree::Pattern(
                 Predicate::Unit,
-                Match::Any( exprs
+                Match::Any(exprs
                     .iter()
-                    .map(|(e, span)| e
-                        .resolve_pattern(src_dict, trie, resolved_src)
+                    .map(|(e, span)|
+                        e
+                        .resolve_seq(src_dict, trie, resolved_src, resolved_pattern)
                         .map_err(|err| err.with_span(*span))
+                        .and_then(|seq_tree| {
+                            if let SeqTree::Pattern(Predicate::Unit, pattern_match) = seq_tree {
+                                Ok(pattern_match)
+                            } else {
+                                Err(Error::Unspanned(
+                                    format!("Unexpected expression type in sequence Any: {:?}", e)
+                                ))
+                            }
+                        })
                     )
                     .collect::<Result<_,_>>()?
                 ).optimise()

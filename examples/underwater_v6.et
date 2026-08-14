@@ -1,4 +1,4 @@
-# v0.6
+# v0.7
 # Change log:
 # Photons -> Signals to be more generic in definition
 
@@ -8,17 +8,17 @@
 #
 # Define the serialised Ledger and Photons collected
 # ============================================================
-ledger = "../../underwater_tank/out/simulation_ledger.json"
-photons = "../../underwater_tank/out/photon_collector_spad_sensor.csv"
+ledger = "../../aetherus-scene/underwater-paper/out/simulation_ledger.json"
+signals = "../../aetherus-scene/underwater-paper/out/photon_collector_spad_sensor.csv"
 
 # Define material and surface identifiers we want to match for
 # ============================================================
 
-src water_id = any[Mat("seawater"), Mat("Water:Water_material")]
+src water_id = any[Mat("seawater"), MatSurf("Water:Water_material")]
 src glass_id = any[MatSurf("Tank-Water:Tank_material"), MatSurf("Tank:Tank_material"), MatSurf(65534), MatSurf(0xFFFE)]
 src toy_id   = Surf("TargetToy")
 src tube_id  = Surf("TargetTube")
-src air_id   = Mat("Air")
+src air_id   = Mat("air")
 
 # Define encoding patterns to match for
 # =====================================
@@ -68,7 +68,7 @@ rule backscatter = {
     * X,
     Detection | X | Detector(0),
   ],
-  water_backscatter, # equivalent to the inline expression above
+  #water_backscatter, # equivalent to the inline expression above
 }
 
 rule glass_detect = {

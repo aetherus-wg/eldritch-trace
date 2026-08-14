@@ -11,7 +11,7 @@ repository.workspace = true
 [dependencies]
 et-core.workspace = true
 et-encoding.workspace = true
-aetherus-events.workspace = true
+events-ledger.workspace = true
 
 ariadne.workspace = true
 chumsky.workspace = true

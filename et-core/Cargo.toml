@@ -8,7 +8,7 @@ description = "Eldritch-Trace core data structs"
 repository.workspace = true
 
 [dependencies]
-aetherus-events.workspace = true
+events-ledger.workspace = true
 anyhow.workspace = true
 
 [lints]

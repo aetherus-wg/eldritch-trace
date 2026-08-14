@@ -8,7 +8,7 @@ description = "Eldritch-Trace encoding extraction from .md spec which feeds patt
 repository.workspace = true
 
 [dependencies]
-aetherus-events.workspace = true
+events-ledger.workspace = true
 et-core.workspace = true
 anyhow.workspace = true
 env_logger.workspace = true

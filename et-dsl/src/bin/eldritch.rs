@@ -1,6 +1,6 @@
 //! Eldritch-Trace DSL command-line tool
 
-use aetherus_events::{
+use events_ledger::{
     prelude::*,
     read::{CsvRecord, read_csv, read_ledger},
 };

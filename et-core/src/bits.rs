@@ -19,8 +19,8 @@ impl BitsMatch {
     }
 }
 
-impl From<aetherus_events::filter::BitsMatch> for BitsMatch {
-    fn from(other: aetherus_events::filter::BitsMatch) -> Self {
+impl From<events_ledger::filter::BitsMatch> for BitsMatch {
+    fn from(other: events_ledger::filter::BitsMatch) -> Self {
         BitsMatch {
             mask: other.mask,
             value: other.value,
@@ -28,9 +28,9 @@ impl From<aetherus_events::filter::BitsMatch> for BitsMatch {
     }
 }
 
-impl From<BitsMatch> for aetherus_events::filter::BitsMatch {
+impl From<BitsMatch> for events_ledger::filter::BitsMatch {
     fn from(other: BitsMatch) -> Self {
-        aetherus_events::filter::BitsMatch {
+        events_ledger::filter::BitsMatch {
             mask: other.mask,
             value: other.value,
         }

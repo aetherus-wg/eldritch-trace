@@ -1,6 +1,6 @@
 #![cfg_attr(test, allow(missing_docs))]
 
-use aetherus_events::{
+use events_ledger::{
     read::read_ledger,
     prelude::*
 };

@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 
-use aetherus_events::{SrcId as DomainSrcId, ledger::SrcName};
+use events_ledger::{SrcId as DomainSrcId, ledger::SrcName};
 use et_core::{Repetition, bits::BitsMatch};
 use et_encoding::{
     pattern::{self, Pattern},

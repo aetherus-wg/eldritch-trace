@@ -7,7 +7,7 @@ use events_ledger::{
 use anyhow::{Context, Result};
 use clap::Parser;
 use env_logger::Env;
-use et_dsl::{extract_ledger_path, extract_signals_path, model::resolve_ast, parse_script};
+use et_dsl::{extract_ledger_path, extract_signals_path, model::resolve_ast, parse_script, signals::{read_signals, write_signals}};
 use std::{
     collections::HashMap,
     fs,
@@ -164,7 +164,7 @@ fn main() -> Result<()> {
             args.top, signals_path
         );
         let mut uid_hist = HashMap::new();
-        let signals = read_csv(signals_path).context("Failed to read signals file")?;
+        let signals = read_signals(signals_path).context("Failed to read signals file")?;
         for signal in signals {
             *uid_hist.entry(signal.uid).or_insert(0_usize) += 1;
         }
@@ -204,7 +204,7 @@ fn main() -> Result<()> {
         println!("Found {} UIDs", uids.len());
 
         if let Some(ref signals_path) = signals_path {
-            let signals = read_csv(signals_path).context("Failed to read signals file")?;
+            let signals = read_signals(signals_path).context("Failed to read signals file")?;
             let hex_uids = uids.iter().map(|uid| uid.encode()).collect::<Vec<u64>>();
 
             let signals_filtered = signals
@@ -224,19 +224,14 @@ fn main() -> Result<()> {
             } else {
                 signals_path.parent().unwrap().to_path_buf()
             };
-            let csv_outpath = dirpath.join(format!(
-                "{}_{}.csv",
+            let filtered_outpath = dirpath.join(format!(
+                "{}_{}.{}",
                 signals_path.file_stem().unwrap().to_str().unwrap(),
-                rule_name
+                rule_name,
+                signals_path.extension().unwrap().to_str().unwrap(),
             ));
 
-            let mut csv_writer =
-                csv::Writer::from_path(csv_outpath).expect("Unable to create output CSV file");
-            for filtered_record in signals_filtered {
-                csv_writer
-                    .serialize(filtered_record)
-                    .expect("Unable to write filtered CSV file");
-            }
+            write_signals(signals_filtered, &filtered_outpath).context("Failed to write filtered signals to file")?;
         }
 
         //println!("Found UIDS: {:#?}", uids);

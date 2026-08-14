@@ -44,6 +44,7 @@ pub mod evaluate;
 pub mod lexer;
 pub mod model;
 pub mod parse;
+pub mod signals;
 
 use crate::{
     ast::{Declaration, Expr},

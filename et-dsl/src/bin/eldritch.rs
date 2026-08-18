@@ -39,6 +39,9 @@ struct Args {
     /// Top N most common UIDs to visualize in the DOT graph (default: 0)
     #[arg(short, long, default_value_t = 0)]
     top: usize,
+    /// Evaluate UIDs for their event types and build statistic for it
+    #[arg(long, default_value_t = false)]
+    stats: bool,
     /// Verbosity level for logging (e.g., "info", "debug", "error")
     #[arg(short, long, default_value = "info")]
     verbose: String,
@@ -195,12 +198,40 @@ fn main() -> Result<()> {
         std::fs::write(&dot_file, graphviz_dot).context("Failed to write DOT file")?;
     }
 
+    // 7. Traverse leaf nodes and build statistic of event types, then collect the statistics and
+    //    output it to json
+    if args.stats {
+        info!("Evaluating UIDs for their event types and building statistics");
+        let events_counts = ledger_tree.count_events();
+        // Convert HashMap<u32, HashMap<Uid, usize>> to HashMap<u32, HashMap<u64, usize>> calling
+        // encode on all Uid keys
+        let processed_counts: HashMap<u32, HashMap<u64, usize>> = events_counts
+            .into_iter()
+            .map(|(event_type, uid_map)| {
+                let encoded_map: HashMap<u64, usize> = uid_map
+                    .into_iter()
+                    .map(|(uid, count)| (uid.encode(), count))
+                    .collect();
+                (event_type, encoded_map)
+            })
+            .collect();
+        let stats_file = dot_dirname.join(format!(
+            "{}_stats.yaml",
+            script_filepath.file_stem().unwrap().to_str().unwrap()
+        ));
+        let stats_yaml = yaml_serde::to_string(&processed_counts)
+            .context("Failed to serialize event type histogram to JSON")?;
+        std::fs::write(&stats_file, stats_yaml).context("Failed to write statistics YAML file")?;
+        info!("Wrote event type statistics to {:?}", stats_file);
+    }
+
     if args.dry {
         info!("Dry run enabled, skipping rule evaluation");
         return Ok(());
     }
 
-    // 7. Evaluate each rule on the ledger and emit a DOT graph visualizing the UIDs that match the rule
+
+    // 8. Evaluate each rule on the ledger and emit a DOT graph visualizing the UIDs that match the rule
     for (rule_name, rule) in rules.iter() {
         print!("{:<40}", format!("Rule: \x1b[32m{}\x1b[0m", rule_name));
         let uids = rule.evaluate(&ledger_tree)?;

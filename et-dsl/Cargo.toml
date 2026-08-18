@@ -25,6 +25,7 @@ hdf5-metno.workspace = true
 serde.workspace = true
 array-bytes.workspace = true
 rayon.workspace = true
+yaml_serde.workspace = true
 
 [dev-dependencies]
 cargo-husky = "1.5.0"

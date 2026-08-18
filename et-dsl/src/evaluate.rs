@@ -6,8 +6,6 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use events_ledger::ledger::LedgerNode;
-use events_ledger::maps::SmallMap;
 use events_ledger::prelude::*;
 use anyhow::Result;
 
@@ -54,7 +52,7 @@ pub fn find_uids_with_rule(ledger: &LedgerTree, rule: &Rule) -> Result<Vec<Uid>>
     }
     #[derive(Clone)]
     pub struct RuleTraverse<'a> {
-        pub node: Arc<LedgerNode<u32, SmallMap<u32, 4>>>,
+        pub node: Arc<LedgerNode>,
         pub cond_idx: usize,
         pub conds: Vec<CondTraverse<'a>>,
     }

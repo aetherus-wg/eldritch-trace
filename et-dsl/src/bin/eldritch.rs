@@ -27,6 +27,9 @@ struct Args {
     /// Write `.dot` graphviz to visualise encoding Trie
     #[arg(long, default_value_t = false)]
     emit_trie: bool,
+    /// Write `.dot` graphviz to visualise the sub-trees matching rules
+    #[arg(long, default_value_t = false)]
+    dot: bool,
     /// Optional path to the ledger file (overrides script declaration)
     #[arg(long)]
     ledger: Option<String>,
@@ -260,6 +263,7 @@ fn main() -> Result<()> {
             } else {
                 signals_path.parent().unwrap().to_path_buf()
             };
+
             let filtered_outpath = dirpath.join(format!(
                 "{}_{}.{}",
                 signals_path.file_stem().unwrap().to_str().unwrap(),
@@ -272,13 +276,16 @@ fn main() -> Result<()> {
 
         //println!("Found UIDS: {:#?}", uids);
 
-        let dot_file = dot_dirname.join(format!(
-            "{}_{}.dot",
-            script_filepath.file_stem().unwrap().to_str().unwrap(),
-            rule_name
-        ));
-        let graphviz_dot = ledger_tree.emit_dot(&uids);
-        std::fs::write(&dot_file, graphviz_dot).context("Failed to write DOT file")?;
+        if args.dot {
+            info!("Emitting DOT graph for rule {}", rule_name);
+            let dot_file = dot_dirname.join(format!(
+                "{}_{}.dot",
+                script_filepath.file_stem().unwrap().to_str().unwrap(),
+                rule_name
+            ));
+            let graphviz_dot = ledger_tree.emit_dot(&uids);
+            std::fs::write(&dot_file, graphviz_dot).context("Failed to write DOT file")?;
+        }
     }
 
     Ok(())

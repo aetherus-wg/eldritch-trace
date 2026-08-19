@@ -13,16 +13,16 @@ resolver = "3"
 missing_docs = "warn"
 
 [workspace.package]
-version = "0.7.4"
+version = "0.7.5"
 license = "MIT OR Apache-2.0"
 edition = "2024"
 readme = "README.md"
 repository = "https://github.com/aetherus-wg/eldritch-trace"
 
 [workspace.dependencies]
-et-encoding = { path = "et-encoding", version = "^0.7.4" }
-et-core = { path = "et-core", version = "^0.7.4" }
-et-dsl = { path = "et-dsl", version = "^0.7.4" }
+et-encoding = { path = "et-encoding", version = "^0.7.5" }
+et-core = { path = "et-core", version = "^0.7.5" }
+et-dsl = { path = "et-dsl", version = "^0.7.5" }
 
 events-ledger = "^0.3.11"
 ariadne = "0.6.0"
